@@ -81,7 +81,7 @@ DEFAULT_CONFIG = {
     "command_keys_no_points": ["来发十连", "来发单抽", "看看存石", "签到"],
     "cost_danchou": 3,
     "cost_shilian": 30,
-    "enable_daily_scrape": False,
+    "enable_daily_scrape": True,
     "scrape_time": "04:00",
     "rate_up_s3": 4.0, "rate_up_s4": 2.1, "rate_up_s5": 0.8,
     "rate_up_ce3": 8.0, "rate_up_ce4": 4.0, "rate_up_ce5": 2.8,
