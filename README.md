@@ -97,6 +97,9 @@ AstrBot/data/plugin_data/astrbot_plugin_fgo_gacha/
 **十连报缺少 Pillow**
 在 AstrBot 的 Python 环境执行 `pip install -r requirements.txt` 后重启。
 
+**抓取素材报 SSL: CERTIFICATE_VERIFY_FAILED**
+通常是运行环境缺少可用的 CA 证书包。执行 `pip install -U certifi` 后重试；仍有问题时可设置环境变量 `SSL_CERT_FILE` 指向可用的 CA 证书文件。
+
 **设置页一直加载 / 桥接超时**
 先刷新页面；仍不行时重启 AstrBot。设置页需要 AstrBot 4.28+ 的插件页面桥接。
 
@@ -108,7 +111,7 @@ AstrBot/data/plugin_data/astrbot_plugin_fgo_gacha/
 
 - AstrBot **4.28.x**（在 4.28.2 上测试）
 - 消息平台：`aiocqhttp`、`qq_official`
-- 依赖：`pillow`
+- 依赖：`pillow`、`certifi`
 
 ## 更新日志
 

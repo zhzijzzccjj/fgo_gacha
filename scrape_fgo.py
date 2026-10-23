@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pathlib
 import re
+import ssl
 import sys
+import urllib.error
 import urllib.request
 from urllib.parse import quote, urlsplit, urlunsplit
 from concurrent.futures import ThreadPoolExecutor
@@ -43,10 +46,44 @@ def _encode_url(url: str) -> str:
         return url
 
 
+def _ssl_context():
+    """优先用系统证书库(truststore), 其次 certifi, 最后 Python 默认上下文"""
+    try:
+        import truststore
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception:
+        pass
+    cafile = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
+    if not cafile:
+        try:
+            import certifi
+            cafile = certifi.where()
+        except Exception:
+            cafile = None
+    try:
+        if cafile and pathlib.Path(cafile).is_file():
+            return ssl.create_default_context(cafile=cafile)
+    except Exception:
+        pass
+    return ssl.create_default_context()
+
+
+_SSL_CONTEXT = _ssl_context()
+
+
 def fetch(url: str, timeout: int = 40) -> bytes:
     req = urllib.request.Request(_encode_url(url), headers=UA)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CONTEXT) as r:
+            return r.read()
+    except urllib.error.URLError as e:
+        reason = getattr(e, "reason", None)
+        if isinstance(reason, ssl.SSLError):
+            raise RuntimeError(
+                "SSL 证书校验失败: 请安装/更新 certifi (pip install -U certifi), "
+                "或设置环境变量 SSL_CERT_FILE 指向可用的 CA 证书"
+            ) from e
+        raise
 
 
 def parse_csv(html: str):
