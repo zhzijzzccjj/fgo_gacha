@@ -43,7 +43,7 @@ FGO模拟抽卡：在群内通过水群和签到获取圣晶石，并进行单�
 | 每日首次签到 | +30 圣晶石 |
 
 - `不加分的命令` 中的文本不会获得文字积分（默认包含抽卡、签到、查石等命令）。
-- 积分为 **按群隔离** 的账户，数据保存在 `plugin_data/ufo_shared/points.json`。
+- 积分为 **按群隔离** 的账户，数据保存在 `plugin_data/astrbot_plugin_fgo_gacha/points.json`。
 - **积分功能关闭时**：不再获得积分，`签到` 与 `看看存石` 停用；抽卡仍然可用，但**免费**，不扣石也不校验余额。已有余额会保留，重新开启后继续使用。
 
 ## 卡池与概率
@@ -80,11 +80,9 @@ AstrBot/data/plugins/astrbot_plugin_fgo_gacha/
 ```text
 AstrBot/data/plugin_data/astrbot_plugin_fgo_gacha/
 ├── config.json                # 插件配置
-└── resources/                 # 抽卡素材（meta + image/chouka）
-
-AstrBot/data/plugin_data/ufo_shared/
 ├── points.json                # 圣晶石 / 签到
-└── gacha_count.json           # 抽卡次数统计
+├── gacha_count.json           # 抽卡次数统计
+└── resources/                 # 抽卡素材（meta + image/chouka）
 ```
 
 图片按文件名中的数字识别 ID，例如 `Servant001.jpg`、`礼装001.jpg`。自定义图片放进对应池目录即可参与抽卡（ID 需与 meta 对应才能被国服/剧情规则正确过滤）。

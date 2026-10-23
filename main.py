@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import random
 import re
 import sys
@@ -35,9 +34,9 @@ def astrbot_data_dir() -> Path:
     return Path(get_astrbot_data_path())
 
 
-def shared_store_dir() -> Path:
-    """运行数据(积分/计数/会话)固定放 AstrBot 数据目录 plugin_data/ufo_shared"""
-    return astrbot_data_dir() / "plugin_data" / "ufo_shared"
+def store_dir() -> Path:
+    """运行数据(积分/抽卡计数)固定放本插件专属数据目录"""
+    return astrbot_data_dir() / "plugin_data" / "astrbot_plugin_fgo_gacha"
 
 
 # ================= 自管理配置(不依赖 _conf_schema.json) =================
@@ -300,10 +299,6 @@ class Main(Star):
         self._lock = asyncio.Lock()
         self._rules_cache = None     # 抽卡规则缓存(120s)
         self._cfg = self._load_cfg()  # 自管理配置: 默认值 + config.json 覆盖
-        # 注册"打开资源文件夹"按钮对应的后端 API
-        self.context.register_web_api(
-            "/astrbot_plugin_fgo_gacha/open_assets", self.open_assets, ["GET"], "打开资源文件夹",
-        )
         self.context.register_web_api("/astrbot_plugin_fgo_gacha/config", self.get_config, ["GET"], "读取抽卡配置")
         self.context.register_web_api("/astrbot_plugin_fgo_gacha/config", self.post_config, ["POST"], "保存抽卡配置")
         self.context.register_web_api("/astrbot_plugin_fgo_gacha/scrape", self.scrape_now, ["POST"], "立即增量抓取")
@@ -351,16 +346,6 @@ class Main(Star):
         rates = {cat: float(self._get(f"rate_up_{cat}") or 0.0)
                  for cat in ("s3", "s4", "s5", "ce3", "ce4", "ce5")}
         return ups, rates, rules
-
-    async def open_assets(self):
-        """WebUI 按钮: 在服务器上打开资源文件夹"""
-        path = self._assets_dir()
-        path.mkdir(parents=True, exist_ok=True)
-        try:
-            os.startfile(str(path))
-        except Exception as e:
-            return error_response(f"打开资源文件夹失败: {e}")
-        return json_response({"ok": True, "path": str(path)})
 
     # ================= 自管理配置存取 =================
     def _cfg_path(self) -> Path:
@@ -626,7 +611,7 @@ class Main(Star):
         pts_image = nonneg_int(self._get("points_msg_image"), 10)
         pts_checkin = nonneg_int(self._get("points_checkin"), 30)
 
-        store = shared_store_dir()
+        store = store_dir()
         points_path = store / "points.json"
         gacha_count_path = store / "gacha_count.json"
 
