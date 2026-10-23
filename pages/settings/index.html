@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FGO 抽卡设置</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#ffffff;--text:#1f2329;--muted:#6b7280;--border:#e2e5ea;--accent:#4f7cff;--accent-h:#3a63d8;--danger:#d64545;--ok:#1f9d55;--mono:ui-monospace,Consolas,monospace;--shadow:0 8px 30px rgba(0,0,0,.18)}
+  html[data-theme=dark]{--bg:#16181d;--card:#1e2127;--text:#e6e9ef;--muted:#9aa3af;--border:#333a45;--accent:#6f9cff;--accent-h:#5587f5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px}
+  h1{font-size:18px;margin:0 0 4px}
+  h2{font-size:14px;margin:18px 0 8px;color:var(--accent)}
+  .sub{color:var(--muted);margin:0 0 14px;font-size:13px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:12px}
+  .row{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--border)}
+  .row:last-child{border-bottom:none}
+  .row .k{width:240px;flex:0 0 240px}
+  .row .k b{font-size:13.5px}
+  .row .k p{margin:2px 0 0;color:var(--muted);font-size:12px;word-break:break-all}
+  .row .v{flex:1;min-width:0}
+  input[type=text],input[type=number],textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font:13px var(--mono)}
+  textarea{min-height:60px;resize:vertical}
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin-top:4px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  button{cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:9px 16px;font-size:14px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:var(--accent-h)}
+  .msg{margin-top:12px;padding:9px 12px;border-radius:8px;display:none;font-size:13px;white-space:pre-wrap}
+  .msg.ok{display:block;background:rgba(31,157,85,.12);color:var(--ok)}
+  .msg.err{display:block;background:rgba(214,69,69,.12);color:var(--danger)}
+  #loading{padding:30px;text-align:center;color:var(--muted)}
+  /* 标签输入 */
+  .tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 7px;min-height:38px}
+  .tags:focus-within{border-color:var(--accent)}
+  .tags .chip{display:inline-flex;align-items:center;gap:4px;background:rgba(79,124,255,.12);color:var(--accent);border-radius:999px;padding:2px 4px 2px 10px;font:12.5px var(--mono);max-width:100%}
+  .tags .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tags .chip button{border:none;background:none;color:inherit;font-size:15px;line-height:1;padding:0 4px;cursor:pointer;border-radius:50%}
+  .tags .chip button:hover{color:var(--danger)}
+  .tags input{flex:1;width:auto;min-width:160px;border:none;background:transparent;color:var(--text);font:13px var(--mono);padding:4px 2px;outline:none}
+  /* UP */
+  .up-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .up-row:last-child{border-bottom:none}
+  .up-row .lbl{width:96px;flex:0 0 96px;font-weight:600}
+  .up-row .cur{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+  .up-row .cur img{width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border)}
+  .up-row .cur .ph{width:40px;height:40px;border-radius:6px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px}
+  .up-row .cur .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .up-row .cur .tag{display:inline-block;font-size:11px;color:var(--accent);background:rgba(79,124,255,.12);padding:0 7px;border-radius:8px;flex:0 0 auto}
+  .up-row button{flex:0 0 auto}
+  /* 弹层 */
+  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;z-index:99;padding:20px}
+  #modal.show{display:flex}
+  .modal-box{background:var(--card);border:1px solid var(--border);border-radius:12px;max-width:760px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .modal-search{padding:10px 16px;border-bottom:1px solid var(--border)}
+  .modal-search input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font:13px var(--mono)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .modal-head b{font-size:15px}
+  .modal-close{cursor:pointer;font-size:20px;line-height:1;color:var(--muted);border:none;background:none;padding:4px 8px}
+  .modal-body{overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px}
+  .m-item{cursor:pointer;border:2px solid transparent;border-radius:10px;padding:6px;text-align:center;background:var(--bg)}
+  .m-item:hover{border-color:var(--accent)}
+  .m-item.sel{border-color:var(--accent);background:rgba(79,124,255,.10)}
+  .m-item img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
+  .m-item .nm{font-size:11px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+  .modal-foot{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+  <h1>FGO 抽卡配置</h1>
+  <p class="sub">配置由本插件自管理存储：plugin_data/astrbot_plugin_fgo_gacha/config.json。新增配置项只需在插件 FIELDS 里加一项。</p>
+  <div id="loading">加载中…</div>
+
+  <div id="formWrap" style="display:none">
+    <div class="card">
+      <h2 style="margin-top:0">UP 卡片（各分类可单独设/不设）</h2>
+      <div id="upRows"></div>
+      <p class="sub" style="margin:8px 0 0">不设置的分类 = 按普通概率随机抽取；UP 概率可在下方"UP 概率(%)"里调整。</p>
+    </div>
+
+    <div id="sections"></div>
+
+    <div class="actions">
+      <button class="primary" id="saveBtn">保存配置</button>
+      <button id="scrapeBtn">立即增量抓取</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div id="modal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <b id="modalTitle">选择 UP</b>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <div class="modal-search">
+        <input id="modalSearch" type="text" placeholder="按名称 / ID 搜索…" />
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot">
+        <span id="modalCount"></span>
+        <span>点击头像即可设为当前 UP</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function getBridge(){ return window.AstrBotPluginView || window.AstrBotPluginPage || null; }
+  function waitForBridge(t){
+    return new Promise(function(res, rej){
+      var t0 = Date.now();
+      (function poll(){
+        var b = getBridge();
+        if (b) return res(b);
+        if (Date.now() - t0 > t) return rej(new Error("桥接 SDK 加载超时"));
+        setTimeout(poll, 50);
+      })();
+    });
+  }
+
+  var fields = [];
+  var controls = {};
+  var modalCands = [];        // 当前弹层候选全集(搜索过滤用)
+  var upConfig = {};          // 当前各分类 UP(来自 config.up_*)
+  var modalCat = "s5";
+  var UP_CATS = [
+    {cat:"s5", label:"5★从者", kind:"servant"},
+    {cat:"s4", label:"4★从者", kind:"servant"},
+    {cat:"s3", label:"3★从者", kind:"servant"},
+    {cat:"ce5", label:"5★礼装", kind:"ce"},
+    {cat:"ce4", label:"4★礼装", kind:"ce"},
+    {cat:"ce3", label:"3★礼装", kind:"ce"}
+  ];
+
+  function setMsg(text, ok){
+    var m = document.getElementById("msg");
+    m.className = "msg " + (ok ? "ok" : "err");
+    m.textContent = text;
+  }
+  function api(path, body, isPost, params){
+    var b = getBridge();
+    var p = isPost ? b.apiPost(path, body) : b.apiGet(path, params);
+    return p.then(function(r){
+      if (r && r.ok === false) throw new Error(r.message || "调用失败");
+      return r;
+    });
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function methodTag(m){
+    if (!m) return "";
+    if (m.indexOf("圣晶石常驻") >= 0 || m.indexOf("卡池常驻") >= 0) return "常驻";
+    if (m.indexOf("剧情限定") >= 0) return "剧情限定";
+    if (m.indexOf("期间限定") >= 0) return "期间限定";
+    return "限定";
+  }
+
+  /* ---------- 配置表单 ---------- */
+  function makeControl(type, value, f){
+    var v = document.createElement("div"); v.className = "v"; var el;
+    if (type === "tags"){
+      el = document.createElement("div"); el.className = "tags";
+      var vals = (Array.isArray(value) ? value : []).map(function(x){ return String(x); }).filter(Boolean);
+      var digitsOnly = !!(f && f.digits);
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = (f && f.placeholder) || "输入后回车";
+      el.appendChild(input);
+      v.appendChild(el);
+      function paint(){
+        Array.prototype.slice.call(el.querySelectorAll(".chip")).forEach(function(n){ el.removeChild(n); });
+        vals.forEach(function(val, idx){
+          var chip = document.createElement("span"); chip.className = "chip";
+          var txt = document.createElement("span"); txt.textContent = val;
+          var x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.title = "删除";
+          x.addEventListener("click", function(){ vals.splice(idx, 1); paint(); });
+          chip.appendChild(txt); chip.appendChild(x);
+          el.insertBefore(chip, input);
+        });
+      }
+      function commit(){
+        var raw = input.value;
+        if (!raw) return;
+        raw.split(/[,，;；\s]+/).forEach(function(part){
+          var val = digitsOnly ? part.replace(/\D/g, "") : part.trim();
+          if (val && vals.indexOf(val) < 0) vals.push(val);
+        });
+        input.value = "";
+        paint();
+      }
+      input.addEventListener("keydown", function(e){
+        var sep = e.key === "Enter" || e.key === "," || e.key === "，" || (digitsOnly && e.key === " ");
+        if (sep){ e.preventDefault(); commit(); }
+        else if (e.key === "Backspace" && !input.value && vals.length){ vals.pop(); paint(); }
+      });
+      input.addEventListener("input", function(){
+        if (/[,，;；]/.test(input.value) || (digitsOnly && /\s/.test(input.value))){ commit(); return; }
+        if (digitsOnly) input.value = input.value.replace(/\D/g, "");
+      });
+      input.addEventListener("blur", commit);
+      el.addEventListener("click", function(){ input.focus(); });
+      paint();
+      return {el: el, wrap: v, get: function(){ commit(); return vals.slice(); }};
+    }
+    if (type === "bool"){
+      el = document.createElement("input"); el.type = "checkbox"; el.checked = !!value; v.appendChild(el);
+    } else if (type === "int" || type === "float"){
+      el = document.createElement("input"); el.type = "number";
+      el.step = type === "float" ? "any" : "1";
+      el.value = (value === undefined || value === null) ? "" : value; v.appendChild(el);
+    } else if (type === "list"){
+      el = document.createElement("textarea");
+      el.value = Array.isArray(value) ? value.join("\n") : "";
+      el.placeholder = "每行一个"; v.appendChild(el);
+    } else if (type === "dict" || type === "object"){
+      el = document.createElement("textarea");
+      el.value = JSON.stringify(value || {}, null, 2); el.placeholder = "JSON 格式"; v.appendChild(el);
+    } else if (type === "text"){
+      el = document.createElement("textarea");
+      el.value = (value === undefined || value === null) ? "" : value; v.appendChild(el);
+    } else {
+      el = document.createElement("input"); el.type = "text";
+      el.value = (value === undefined || value === null) ? "" : value; v.appendChild(el);
+    }
+    return {el: el, wrap: v};
+  }
+  function render(config){
+    var root = document.getElementById("sections");
+    root.innerHTML = "";
+    var order = [];
+    fields.forEach(function(f){ if (order.indexOf(f.section) < 0) order.push(f.section || "其他"); });
+    order.forEach(function(sec){
+      var h = document.createElement("h2"); h.textContent = sec; root.appendChild(h);
+      var card = document.createElement("div"); card.className = "card";
+      fields.filter(function(f){ return (f.section || "其他") === sec; }).forEach(function(f){
+        var row = document.createElement("div"); row.className = "row";
+        var k = document.createElement("div"); k.className = "k";
+        k.innerHTML = "<b>" + esc(f.label || f.key) + "</b><p>" + esc(f.desc || "") + "</p>";
+        var c = makeControl(f.type, config[f.key], f);
+        controls[f.key] = {type: f.type, el: c.el, get: c.get};
+        row.appendChild(k); row.appendChild(c.wrap);
+        card.appendChild(row);
+      });
+      root.appendChild(card);
+    });
+  }
+  function collect(){
+    var out = {};
+    Object.keys(controls).forEach(function(key){
+      var c = controls[key], t = c.type;
+      if (c.get) out[key] = c.get();
+      else if (t === "bool") out[key] = c.el.checked;
+      else if (t === "list") out[key] = c.el.value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
+      else if (t === "dict" || t === "object"){ try { out[key] = JSON.parse(c.el.value); } catch(e){ out[key] = {}; } }
+      else if (t === "int"){ var n = parseInt(c.el.value, 10); out[key] = isNaN(n) ? 0 : n; }
+      else if (t === "float"){ var n = parseFloat(c.el.value); out[key] = isNaN(n) ? 0 : n; }
+      else out[key] = c.el.value;
+    });
+    return out;
+  }
+
+  /* ---------- UP 六分类 ---------- */
+  function curUp(cat){ return upConfig[cat] && upConfig[cat].id ? upConfig[cat] : null; }
+  function upLabel(cat){
+    var uc = UP_CATS.filter(function(x){ return x.cat === cat; })[0];
+    return uc ? uc.label : cat;
+  }
+  function renderUpRows(){
+    var root = document.getElementById("upRows");
+    root.innerHTML = "";
+    UP_CATS.forEach(function(uc){
+      var u = curUp(uc.cat);
+      var row = document.createElement("div"); row.className = "up-row";
+      var lbl = document.createElement("div"); lbl.className = "lbl"; lbl.textContent = uc.label;
+      var cur = document.createElement("div"); cur.className = "cur";
+      if (u){
+        var img = document.createElement("img"); img.src = u.avatar; img.alt = u.name || u.id;
+        img.onerror = function(){ img.style.background = "var(--border)"; };
+        var nm = document.createElement("div"); nm.className = "nm";
+        nm.textContent = (u.name || ("#" + u.id)) + "（" + methodTag(u.method) + "）";
+        cur.appendChild(img); cur.appendChild(nm);
+      } else {
+        var ph = document.createElement("div"); ph.className = "ph"; ph.textContent = "未设置";
+        var nm = document.createElement("div"); nm.className = "nm"; nm.textContent = "普通随机";
+        cur.appendChild(ph); cur.appendChild(nm);
+      }
+      row.appendChild(lbl); row.appendChild(cur);
+      if (u){
+        var clr = document.createElement("button"); clr.textContent = "清除"; clr.title = "取消该分类 UP, 恢复普通随机";
+        clr.addEventListener("click", function(){ clearUp(uc.cat); });
+        row.appendChild(clr);
+      }
+      var btn = document.createElement("button"); btn.textContent = "选择";
+      btn.addEventListener("click", function(){ openModal(uc.cat); });
+      row.appendChild(btn);
+      root.appendChild(row);
+    });
+  }
+  function openModal(cat){
+    modalCat = cat;
+    var uc = UP_CATS.filter(function(x){ return x.cat === cat; })[0];
+    document.getElementById("modalTitle").textContent = "选择 " + (uc ? uc.label : cat) + " UP";
+    document.getElementById("modalBody").innerHTML = "<p style='color:var(--muted)'>加载中…</p>";
+    document.getElementById("modalCount").textContent = "";
+    var searchEl = document.getElementById("modalSearch");
+    if (searchEl) searchEl.value = "";
+    document.getElementById("modal").className = "show";
+    api("up_candidates", null, false, {cat: cat}).then(function(r){
+      var body = document.getElementById("modalBody");
+      body.innerHTML = "";
+      modalCands = r.candidates || [];
+      var cands = modalCands;
+      if (!cands.length){
+        body.innerHTML = "<p style='color:var(--muted)'>该分类暂无候选（请先「立即增量抓取」，或该星级暂无常驻/限定）。</p>";
+        document.getElementById("modalCount").textContent = "";
+        return;
+      }
+      var cur = curUp(cat);
+      cands.forEach(function(c){
+        var it = document.createElement("div");
+        it.className = "m-item" + (cur && cur.id === c.id ? " sel" : "");
+        it.setAttribute("data-nm", String(c.name || "").toLowerCase());
+        it.setAttribute("data-id", String(c.id));
+        var img = document.createElement("img");
+        img.src = c.avatar; img.loading = "lazy"; img.alt = c.name || c.id;
+        img.onerror = function(){ img.style.background = "var(--border)"; };
+        var nm = document.createElement("div"); nm.className = "nm"; nm.textContent = c.name || ("#" + c.id);
+        it.appendChild(img); it.appendChild(nm);
+        it.title = (c.name || ("#" + c.id)) + "（" + methodTag(c.method) + "）";
+        it.addEventListener("click", function(){ chooseUp(cat, c.id); });
+        body.appendChild(it);
+      });
+      applyModalFilter();
+      document.getElementById("modalCount").textContent = "共 " + cands.length + " 个候选";
+    }).catch(function(e){
+      document.getElementById("modalBody").innerHTML = "<p style='color:var(--danger)'>加载候选失败: " + esc(e && e.message || e) + "</p>";
+    });
+  }
+  function applyModalFilter(){
+    var searchEl = document.getElementById("modalSearch");
+    var q = searchEl ? searchEl.value.trim().toLowerCase() : "";
+    var body = document.getElementById("modalBody");
+    var shown = 0;
+    (body.querySelectorAll(".m-item") || []).forEach(function(it){
+      var hit = !q || (it.getAttribute("data-nm") || "").indexOf(q) >= 0 || String(it.getAttribute("data-id") || "").indexOf(q) >= 0;
+      it.style.display = hit ? "" : "none";
+      if (hit) shown++;
+    });
+    var countEl = document.getElementById("modalCount");
+    if (q && countEl) countEl.textContent = "匹配 " + shown + " / " + modalCands.length;
+  }
+  function closeModal(){ document.getElementById("modal").className = ""; }
+  function chooseUp(cat, id){
+    api("up", {cat: cat, id: id}, true).then(function(r){
+      upConfig[r.cat] = r.up;
+      renderUpRows();
+      closeModal();
+      setMsg("已设置「" + upLabel(cat) + "」UP：" + (r.up && r.up.name || ("#" + id)), true);
+    }).catch(function(e){ setMsg("设置 UP 失败: " + (e && e.message || e), false); });
+  }
+  function clearUp(cat){
+    api("up", {cat: cat, id: 0}, true).then(function(){
+      upConfig[cat] = null;
+      renderUpRows();
+      setMsg("已清除「" + upLabel(cat) + "」UP，该分类恢复普通随机。", true);
+    }).catch(function(e){ setMsg("清除失败: " + (e && e.message || e), false); });
+  }
+
+  /* ---------- 初始化 ---------- */
+  function init(){
+    waitForBridge(8000).then(function(b){ return b.ready(); }).then(function(ctx){
+      document.documentElement.setAttribute("data-theme", ctx.isDark ? "dark" : "light");
+      return api("config");
+    }).then(function(data){
+      fields = data.fields || [];
+      var cfg = data.config || {};
+      upConfig = { s3: cfg.up_s3, s4: cfg.up_s4, s5: cfg.up_s5, ce3: cfg.up_ce3, ce4: cfg.up_ce4, ce5: cfg.up_ce5 };
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("formWrap").style.display = "block";
+      render(cfg);
+      renderUpRows();
+    }).catch(function(e){
+      document.getElementById("loading").textContent = "加载失败: " + (e && e.message || e) + "（若为桥接 SDK 超时, 请刷新本页面重试）";
+    });
+  }
+
+  document.getElementById("saveBtn").addEventListener("click", function(){
+    api("config", collect(), true).then(function(r){
+      setMsg("已保存到自管理配置。\n当前值: " + JSON.stringify(r.config), true);
+    }).catch(function(e){ setMsg("保存失败: " + (e && e.message || e), false); });
+  });
+  document.getElementById("scrapeBtn").addEventListener("click", function(){
+    api("scrape", {}, true).then(function(r){
+      setMsg("已在后台开始增量抓取(从者+礼装)，请稍候查看 AstrBot 日志。", !!r.started);
+    }).catch(function(e){ setMsg("触发失败: " + (e && e.message || e), false); });
+  });
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalSearch").addEventListener("input", applyModalFilter);
+  document.getElementById("modal").addEventListener("click", function(e){
+    if (e.target === document.getElementById("modal")) closeModal();
+  });
+
+  init();
+</script>
+</body>
+</html>
