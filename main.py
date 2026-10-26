@@ -46,6 +46,8 @@ FIELDS = [
      "desc": "启用本插件的群; 留空 = 所有群", "placeholder": "输入群号后回车, 可连续添加", "digits": True},
     {"key": "enable_points", "type": "bool", "label": "积分功能", "section": "积分/签到",
      "desc": "关: 水群/签到不再得分，签到与看存石停用；抽卡照常但免费(不扣石、不校验余额)"},
+    {"key": "points_off_reply", "type": "bool", "label": "积分关闭提示", "section": "积分/签到",
+     "desc": "积分功能关闭时，收到签到/看看存石是否回复“已关闭”提示；关 = 静默不回复"},
     {"key": "points_msg_text", "type": "int", "label": "文字消息积分", "section": "积分/签到",
      "desc": "每条普通文字消息获得的圣晶石, 默认 5"},
     {"key": "points_msg_image", "type": "int", "label": "图片消息积分", "section": "积分/签到",
@@ -54,8 +56,10 @@ FIELDS = [
      "desc": "每天首次签到获得的圣晶石, 默认 30"},
     {"key": "command_keys_no_points", "type": "tags", "label": "不加分的命令", "section": "积分/签到",
      "desc": "这些命令消息不获得水群积分", "placeholder": "输入命令后回车, 可连续添加"},
-    {"key": "cost_danchou", "type": "int", "label": "单抽消耗(圣晶石)", "section": "抽卡价格", "desc": ""},
-    {"key": "cost_shilian", "type": "int", "label": "十连消耗(圣晶石)", "section": "抽卡价格", "desc": ""},
+    {"key": "cost_danchou", "type": "int", "label": "单抽消耗(圣晶石)", "section": "抽卡价格",
+     "desc": "默认 3; 填 0 = 免费单抽"},
+    {"key": "cost_shilian", "type": "int", "label": "十连消耗(圣晶石)", "section": "抽卡价格",
+     "desc": "默认 30; 填 0 = 免费十连"},
     {"key": "enable_daily_scrape", "type": "bool", "label": "每日自动抓取", "section": "定时抓取",
      "desc": "每天按时自动增量抓取 fgo.wiki 从者+礼装素材"},
     {"key": "scrape_time", "type": "string", "label": "每日抓取时间", "section": "定时抓取",
@@ -74,6 +78,7 @@ FIELDS = [
 DEFAULT_CONFIG = {
     "group_scope": [],
     "enable_points": True,
+    "points_off_reply": True,
     "points_msg_text": 5,
     "points_msg_image": 10,
     "points_checkin": 30,
@@ -578,31 +583,43 @@ class Main(Star):
         logger.info(f"fgo_gacha UP[{cat}] = id {uid} {info.get('name')}")
         return json_response({"ok": True, "cat": cat, "up": info, "file": src})
 
-    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
-    async def on_group_message(self, event: AstrMessageEvent):
-        """群消息: 积分记账 + 签到/看看存石 + 抽卡(扣石)"""
+    @filter.event_message_type(
+        filter.EventMessageType.GROUP_MESSAGE | filter.EventMessageType.PRIVATE_MESSAGE
+    )
+    async def on_message(self, event: AstrMessageEvent):
+        """群/私聊消息: 群聊积分记账+签到/看石+抽卡(扣石); 私聊抽卡免费且不涉及积分"""
         gid = event.get_group_id()
         uid = event.get_sender_id()
-        if not gid or not uid:
+        if not uid or uid == event.get_self_id():
             return
-        if uid == event.get_self_id():
-            return
-        scope = self._get("group_scope") or []
-        if scope and gid not in scope:
-            return
+        is_private = not gid
+        if not is_private:
+            scope = self._get("group_scope") or []
+            if scope and gid not in scope:
+                return
 
         text = event.message_str.strip()
         ep = self._get("enable_points", True)
         enable_points = (ep.strip().lower() in ("1", "true", "yes", "on")) if isinstance(ep, str) else bool(ep)
-        gacha_free = False
-        if not enable_points:
-            # 积分关闭: 水群/签到不再得分, 签到/看存石停用; 抽卡照常但免费(不扣石、不校验余额)
+        pr = self._get("points_off_reply", True)
+        points_off_reply = (pr.strip().lower() in ("1", "true", "yes", "on")) if isinstance(pr, str) else bool(pr)
+
+        # 私聊不做任何积分限制; 群聊积分关闭时同样免费
+        gacha_free = is_private or not enable_points
+        if is_private:
             if text in ("签到", "看看存石"):
-                yield event.plain_result("积分功能已关闭，签到和看存石暂时都不可用。")
+                yield event.plain_result("私聊不统计积分，签到和看看存石请在群聊中使用。")
                 return
             if text not in ("来发单抽", "来发十连"):
                 return
-            gacha_free = True
+        elif not enable_points:
+            # 积分关闭: 水群/签到不再得分, 签到/看存石停用; 抽卡照常但免费(不扣石、不校验余额)
+            if text in ("签到", "看看存石"):
+                if points_off_reply:
+                    yield event.plain_result("积分功能已关闭，签到和看看存石暂时都不可用。")
+                return
+            if text not in ("来发单抽", "来发十连"):
+                return
 
         comps = event.get_messages()
         has_pic = any(getattr(c, "type", None) == "Image" for c in comps)
@@ -614,17 +631,18 @@ class Main(Star):
         store = store_dir()
         points_path = store / "points.json"
         gacha_count_path = store / "gacha_count.json"
+        count_key = f"private_{uid}" if is_private else gid
 
         gacha_cmd = None
         reply = None       # 签到/看看存石 的文本回答
         at_reply = None    # 需要 @ 的文本回答 (uid, text)
 
         if gacha_free:
-            # 免费抽卡: 只记录抽卡次数, 完全不读不写 points.json
+            # 免费抽卡: 只记录抽卡次数, 完全不读写 points.json
             gacha_cmd = text
             async with self._lock:
                 counts = load_json(gacha_count_path, {})
-                g = counts.setdefault(gid, {})
+                g = counts.setdefault(count_key, {})
                 today = date.today().isoformat()
                 g[today] = int(g.get(today) or 0) + (10 if text == "来发十连" else 1)
                 save_json(gacha_count_path, counts)
@@ -653,10 +671,11 @@ class Main(Star):
 
                 # ---- 抽卡命令: 校验并扣石 ----
                 if text in ("来发单抽", "来发十连"):
-                    cost = (self._get("cost_danchou") or 3) if text == "来发单抽" else (self._get("cost_shilian") or 30)
+                    default_cost = 3 if text == "来发单抽" else 30
+                    cost = nonneg_int(self._get("cost_danchou" if text == "来发单抽" else "cost_shilian"), default_cost)
                     points = int(me.get("points") or 0)
                     if points < cost:
-                        at_reply = (uid, f"当前圣晶石只有{points}颗，请多多水群或是每日签到赚取石头哦！")
+                        at_reply = (uid, f"当前圣晶石只有{points}颗，本次需要{cost}颗，请多多水群或是每日签到赚取石头哦！")
                     else:
                         me["points"] = points - cost
                         gacha_cmd = text
@@ -668,6 +687,7 @@ class Main(Star):
                 save_json(points_path, data)
 
         # ---- 锁外回复(不阻塞其它消息的积分读写) ----
+        at_user = [] if is_private else [Comp.At(qq=uid)]
         if reply:
             yield event.plain_result(reply)
         if at_reply:
@@ -683,9 +703,9 @@ class Main(Star):
                 cache = self._chouka_dir() / "cache" / "1.png"
                 img = shi_lian(self._chouka_dir(), cache, ups, rates, rules)
             if not img:
-                yield event.chain_result([Comp.At(qq=uid), Comp.Plain("卡池图片缺失，请先在设置页执行「立即增量抓取」")])
+                yield event.chain_result(at_user + [Comp.Plain("卡池图片缺失，请先在设置页执行「立即增量抓取」")])
             else:
-                yield event.chain_result([Comp.At(qq=uid), Comp.Image.fromFileSystem(img)])
+                yield event.chain_result(at_user + [Comp.Image.fromFileSystem(img)])
         except Exception as e:
             logger.error(f"fgo_gacha 抽卡失败: {e}")
-            yield event.chain_result([Comp.At(qq=uid), Comp.Plain(f"抽卡失败: {e}")])
+            yield event.chain_result(at_user + [Comp.Plain(f"抽卡失败: {e}")])
