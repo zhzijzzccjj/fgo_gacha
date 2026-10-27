@@ -129,6 +129,9 @@ AstrBot/data/plugin_data/astrbot_plugin_fgo_gacha/
 -  新增私聊回复
 -  新增积分功能关闭后的静默开关（防止和其他插件签到产生冲突）
 
+### 1.0.4
+-  新增指令拦截，防止指令触发本插件后再次触发AstrBot的LLM
+
 ## 声明
 
 卡牌图片与数据来源于 [fgo.wiki](https://fgo.wiki) 及《Fate/Grand Order》，版权归原作者及权利方所有。本插件仅供学习与交流使用，请勿用于商业用途，与 TYPE-MOON / FGO 官方无关。

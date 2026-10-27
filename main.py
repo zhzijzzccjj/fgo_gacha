@@ -584,7 +584,8 @@ class Main(Star):
         return json_response({"ok": True, "cat": cat, "up": info, "file": src})
 
     @filter.event_message_type(
-        filter.EventMessageType.GROUP_MESSAGE | filter.EventMessageType.PRIVATE_MESSAGE
+        filter.EventMessageType.GROUP_MESSAGE | filter.EventMessageType.PRIVATE_MESSAGE,
+        priority=10,
     )
     async def on_message(self, event: AstrMessageEvent):
         """群/私聊消息: 群聊积分记账+签到/看石+抽卡(扣石); 私聊抽卡免费且不涉及积分"""
@@ -599,6 +600,10 @@ class Main(Star):
                 return
 
         text = event.message_str.strip()
+        # 命令已被本插件消费: 不再转给默认 LLM 聊天(主动回复/默认对话)
+        if text in ("来发单抽", "来发十连", "签到", "看看存石"):
+            event.should_call_llm(True)
+            event.is_at_or_wake_command = True
         ep = self._get("enable_points", True)
         enable_points = (ep.strip().lower() in ("1", "true", "yes", "on")) if isinstance(ep, str) else bool(ep)
         pr = self._get("points_off_reply", True)

@@ -3,5 +3,5 @@ author: CaptainUFO
 display_name: "FGO模拟抽卡"
 desc: "FGO模拟抽卡：在群内通过水群和签到获取圣晶石，并进行单抽/十连，支持从Mooncell自动更新数据。"
 short_desc: "FGO抽卡 - 十连/单抽"
-version: 1.0.3
+version: 1.0.4
 repo: https://github.com/zhzijzzccjj/fgo_gacha
