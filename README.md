@@ -138,4 +138,4 @@ AstrBot/data/plugin_data/astrbot_plugin_fgo_gacha/
 
 ## 其他
 
-本插件由本人八年前的mirai插件代码vibe coding转写而来，内含大量不规范命名和神秘逻辑，请谨慎阅读。
+本插件由本人八年前的mirai插件代码vibe coding转写而来，内含大量不规范命名和神秘逻辑，请谨慎阅读。问题反馈可联系QQ `541516492`。
